@@ -1,0 +1,41 @@
+import type React from "react"
+import type { Metadata } from "next"
+import { Manrope, Inter } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import "./globals.css"
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+})
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+})
+
+export const metadata: Metadata = {
+  title: "InsightX - AI-Powered Sports Analysis",
+  description: "Transform your game with multi-agent AI coaching. Analyze videos, compare performance, and get personalized training plans from our vision-language-action framework.",
+  generator: 'v0.app',
+  openGraph: {
+    title: "InsightX - AI-Powered Sports Analysis",
+    description: "Biomechanical and tactical analysis powered by Gemini AI. Upload your gameplay, ask natural language questions, get instant coaching insights.",
+  }
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="en" className="dark">
+      <body className={`${manrope.variable} ${inter.variable} font-sans antialiased`}>
+        <div className="noise-overlay" aria-hidden="true" />
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
+}

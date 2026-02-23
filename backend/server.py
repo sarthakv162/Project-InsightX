@@ -1,0 +1,201 @@
+"""InsightX — FastAPI Web Server.
+
+Exposes the multi-agent pipeline via REST endpoints so the
+Next.js frontend can send videos and queries.
+"""
+
+import os
+import uuid
+import logging
+import shutil
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+
+from config.settings import settings
+from utils.gemini_client import GeminiClient
+from workflows.insightx_workflow import InsightXWorkflow
+
+# ── logging ───────────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(name)-22s  %(levelname)-7s  %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("insightx.server")
+
+# ── app setup ─────────────────────────────────────────────────────────────
+
+app = FastAPI(title="InsightX API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001", "http://127.0.0.1:3001"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── storage ───────────────────────────────────────────────────────────────
+
+UPLOAD_DIR = Path(__file__).parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+# In-memory session store: session_id → { video_sources, sport, ... }
+sessions: dict = {}
+
+# Shared Gemini client + workflow
+api_key = settings.GEMINI_API_KEY
+if not api_key:
+    raise RuntimeError("GEMINI_API_KEY not set — add it to backend/.env")
+
+gemini = GeminiClient(api_key=api_key, model_name=settings.GEMINI_MODEL)
+workflow = InsightXWorkflow(gemini)
+
+
+# ── request / response models ────────────────────────────────────────────
+
+class YouTubeRequest(BaseModel):
+    url: str
+    sport: str = "unknown"
+
+
+class QueryRequest(BaseModel):
+    session_id: str
+    query: str
+    sport: Optional[str] = None
+
+
+class SessionResponse(BaseModel):
+    session_id: str
+    status: str = "ready"
+    source_type: str = "unknown"
+    filename: Optional[str] = None
+    youtube_url: Optional[str] = None
+
+
+class AnalysisResponse(BaseModel):
+    response: str
+    session_id: str
+
+
+# ── endpoints ─────────────────────────────────────────────────────────────
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok", "model": settings.GEMINI_MODEL}
+
+
+@app.post("/api/video/upload", response_model=SessionResponse)
+async def upload_video(
+    file: UploadFile = File(...),
+    sport: str = Form("unknown"),
+):
+    """Upload a local video file for analysis."""
+    session_id = str(uuid.uuid4())
+    safe_name = f"{session_id}_{file.filename}"
+    dest = UPLOAD_DIR / safe_name
+
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    sessions[session_id] = {
+        "video_sources": [str(dest.resolve())],
+        "sport": sport,
+        "source_type": "upload",
+        "filename": safe_name,
+    }
+    logger.info(f"Uploaded {file.filename} → session {session_id}")
+
+    return SessionResponse(
+        session_id=session_id,
+        status="ready",
+        source_type="upload",
+        filename=safe_name,
+    )
+
+
+@app.post("/api/video/youtube", response_model=SessionResponse)
+async def youtube_video(body: YouTubeRequest):
+    """Register a YouTube URL for analysis."""
+    if not GeminiClient.is_youtube_url(body.url):
+        raise HTTPException(400, "Invalid YouTube URL")
+
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = {
+        "video_sources": [body.url.strip()],
+        "sport": body.sport,
+        "source_type": "youtube",
+        "youtube_url": body.url.strip(),
+    }
+    logger.info(f"YouTube session {session_id}: {body.url}")
+
+    return SessionResponse(
+        session_id=session_id,
+        status="ready",
+        source_type="youtube",
+        youtube_url=body.url.strip(),
+    )
+
+
+@app.post("/api/analysis/query", response_model=AnalysisResponse)
+async def run_analysis(body: QueryRequest):
+    """Run the full multi-agent analysis pipeline."""
+    session = sessions.get(body.session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+
+    sport = body.sport or session.get("sport", "unknown")
+
+    initial_state = {
+        "user_query": body.query,
+        "video_sources": session["video_sources"],
+        "sport": sport,
+        "chat_history": [],
+    }
+
+    logger.info(f"Running pipeline for session {body.session_id}")
+    try:
+        result = workflow.run(initial_state)
+    except Exception as e:
+        logger.exception("Pipeline error")
+        raise HTTPException(500, f"Analysis failed: {e}")
+
+    response_text = result.get("final_response", "No response generated.")
+    return AnalysisResponse(response=response_text, session_id=body.session_id)
+
+
+@app.get("/api/video/file/{filename}")
+async def serve_video(filename: str):
+    """Serve an uploaded video file."""
+    path = UPLOAD_DIR / filename
+    if not path.is_file():
+        raise HTTPException(404, "File not found")
+    return FileResponse(path, media_type="video/mp4")
+
+
+@app.get("/api/session/{session_id}")
+async def get_session(session_id: str):
+    """Return session metadata."""
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+    return {
+        "session_id": session_id,
+        "sport": session.get("sport"),
+        "source_type": session.get("source_type"),
+        "youtube_url": session.get("youtube_url"),
+        "filename": session.get("filename"),
+    }
+
+
+# ── run ───────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
