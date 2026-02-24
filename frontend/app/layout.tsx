@@ -30,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${manrope.variable} ${inter.variable} font-sans antialiased`}>
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className={`${manrope.variable} ${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <div className="noise-overlay" aria-hidden="true" />
         {children}
         <Analytics />

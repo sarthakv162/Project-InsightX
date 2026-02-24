@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 const avatars = [
-  "/professional-headshot-1.png",
-  "/professional-headshot-2.png",
-  "/professional-headshot-3.png",
-  "/professional-headshot-4.png",
-  "/professional-headshot-5.png",
+  { initials: "AK", from: "from-blue-500", to: "to-cyan-400" },
+  { initials: "MJ", from: "from-emerald-500", to: "to-green-400" },
+  { initials: "SR", from: "from-violet-500", to: "to-purple-400" },
+  { initials: "DT", from: "from-orange-500", to: "to-amber-400" },
+  { initials: "LP", from: "from-pink-500", to: "to-rose-400" },
 ]
 
 const textRevealVariants = {
@@ -36,14 +36,14 @@ export function Hero() {
         <img
           src="/hero-sports.png"
           alt=""
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] w-[1200px] max-w-none h-auto opacity-30"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[45%] w-full min-w-[100%] h-auto opacity-30 sm:w-[120%] md:w-[130%] lg:w-[140%]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-zinc-950/70" />
         <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/50 via-transparent to-zinc-950/50" />
       </div>
 
       {/* Subtle radial glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-zinc-800/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[300px] sm:w-[600px] sm:h-[400px] md:w-[800px] md:h-[600px] bg-zinc-800/20 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative z-10 max-w-5xl mx-auto text-center">
         {/* Badge */}
@@ -54,7 +54,7 @@ export function Hero() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-zinc-900 border border-zinc-800 mb-8"
         >
           <span className="w-2 h-2 rounded-full bg-white pulse-glow" />
-          <span className="text-sm text-zinc-400">Multi-Agent AI Analysis</span>
+          <span className="text-sm text-zinc-400">Next-Gen Multi-Agent Sports Intelligence</span>
         </motion.div>
 
         {/* Headline with text mask animation */}
@@ -64,7 +64,7 @@ export function Hero() {
         >
           <span className="block overflow-hidden">
             <motion.span className="block" variants={textRevealVariants} initial="hidden" animate="visible" custom={0}>
-              Analyze sports
+              Decode every
             </motion.span>
           </span>
           <span className="block overflow-hidden">
@@ -75,7 +75,7 @@ export function Hero() {
               animate="visible"
               custom={1}
             >
-              like a coach.
+              move on the field.
             </motion.span>
           </span>
         </h1>
@@ -87,7 +87,7 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.5 }}
           className="text-lg sm:text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed"
         >
-          AI-powered biomechanical and tactical analysis. Upload your gameplay footage, ask natural language questions, and get instant coaching insights powered by our multi-agent framework.
+          Upload gameplay footage and let our multi-agent AI dissect biomechanics, tactics, and performance - delivering elite-level coaching insights in minutes, not weeks.
         </motion.p>
 
         {/* CTAs */}
@@ -131,16 +131,16 @@ export function Hero() {
                 transition={{ duration: 0.4, delay: 0.8 + index * 0.1 }}
                 className="relative"
               >
-                <img
-                  src={avatar || "/placeholder.svg"}
-                  alt=""
-                  className="w-10 h-10 rounded-full border-2 border-zinc-950 object-cover"
-                />
+                <div
+                  className={`w-10 h-10 rounded-full border-2 border-zinc-950 bg-gradient-to-br ${avatar.from} ${avatar.to} flex items-center justify-center`}
+                >
+                  <span className="text-white text-xs font-bold">{avatar.initials}</span>
+                </div>
               </motion.div>
             ))}
           </div>
           <p className="text-sm text-zinc-500">
-            Trusted by <span className="text-zinc-300 font-medium">2,000+</span> teams worldwide
+            Empowering <span className="text-zinc-300 font-medium">2,000+</span> athletes & coaches worldwide
           </p>
         </motion.div>
       </div>

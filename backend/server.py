@@ -8,6 +8,8 @@ import os
 import uuid
 import logging
 import shutil
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
 
@@ -57,11 +59,20 @@ if not api_key:
 gemini = GeminiClient(api_key=api_key, model_name=settings.GEMINI_MODEL)
 workflow = InsightXWorkflow(gemini)
 
+# Thread pool for running the blocking pipeline off the event loop
+_executor = ThreadPoolExecutor(max_workers=4)
+
 
 # ── request / response models ────────────────────────────────────────────
 
 class YouTubeRequest(BaseModel):
     url: str
+    sport: str = "unknown"
+
+
+class CompareYouTubeRequest(BaseModel):
+    url1: str
+    url2: str
     sport: str = "unknown"
 
 
@@ -77,11 +88,15 @@ class SessionResponse(BaseModel):
     source_type: str = "unknown"
     filename: Optional[str] = None
     youtube_url: Optional[str] = None
+    filename2: Optional[str] = None
+    youtube_url2: Optional[str] = None
+    is_comparison: bool = False
 
 
 class AnalysisResponse(BaseModel):
     response: str
     session_id: str
+    key_events: list = []
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────
@@ -161,13 +176,82 @@ async def run_analysis(body: QueryRequest):
 
     logger.info(f"Running pipeline for session {body.session_id}")
     try:
-        result = workflow.run(initial_state)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(_executor, workflow.run, initial_state)
     except Exception as e:
         logger.exception("Pipeline error")
         raise HTTPException(500, f"Analysis failed: {e}")
 
     response_text = result.get("final_response", "No response generated.")
-    return AnalysisResponse(response=response_text, session_id=body.session_id)
+    key_events = result.get("key_events", [])
+    return AnalysisResponse(response=response_text, session_id=body.session_id, key_events=key_events)
+
+
+@app.post("/api/video/youtube-compare", response_model=SessionResponse)
+async def youtube_compare(body: CompareYouTubeRequest):
+    """Register two YouTube URLs for comparison analysis."""
+    if not GeminiClient.is_youtube_url(body.url1):
+        raise HTTPException(400, "Invalid YouTube URL for Video 1")
+    if not GeminiClient.is_youtube_url(body.url2):
+        raise HTTPException(400, "Invalid YouTube URL for Video 2")
+
+    session_id = str(uuid.uuid4())
+    sessions[session_id] = {
+        "video_sources": [body.url1.strip(), body.url2.strip()],
+        "sport": body.sport,
+        "source_type": "youtube",
+        "youtube_url": body.url1.strip(),
+        "youtube_url2": body.url2.strip(),
+        "is_comparison": True,
+    }
+    logger.info(f"Compare session {session_id}: {body.url1} vs {body.url2}")
+
+    return SessionResponse(
+        session_id=session_id,
+        status="ready",
+        source_type="youtube",
+        youtube_url=body.url1.strip(),
+        youtube_url2=body.url2.strip(),
+        is_comparison=True,
+    )
+
+
+@app.post("/api/video/upload-compare", response_model=SessionResponse)
+async def upload_compare(
+    file1: UploadFile = File(...),
+    file2: UploadFile = File(...),
+    sport: str = Form("unknown"),
+):
+    """Upload two video files for comparison analysis."""
+    session_id = str(uuid.uuid4())
+    safe1 = f"{session_id}_1_{file1.filename}"
+    safe2 = f"{session_id}_2_{file2.filename}"
+    dest1 = UPLOAD_DIR / safe1
+    dest2 = UPLOAD_DIR / safe2
+
+    with open(dest1, "wb") as f:
+        shutil.copyfileobj(file1.file, f)
+    with open(dest2, "wb") as f:
+        shutil.copyfileobj(file2.file, f)
+
+    sessions[session_id] = {
+        "video_sources": [str(dest1.resolve()), str(dest2.resolve())],
+        "sport": sport,
+        "source_type": "upload",
+        "filename": safe1,
+        "filename2": safe2,
+        "is_comparison": True,
+    }
+    logger.info(f"Compare upload {file1.filename} vs {file2.filename} → session {session_id}")
+
+    return SessionResponse(
+        session_id=session_id,
+        status="ready",
+        source_type="upload",
+        filename=safe1,
+        filename2=safe2,
+        is_comparison=True,
+    )
 
 
 @app.get("/api/video/file/{filename}")
@@ -190,7 +274,10 @@ async def get_session(session_id: str):
         "sport": session.get("sport"),
         "source_type": session.get("source_type"),
         "youtube_url": session.get("youtube_url"),
+        "youtube_url2": session.get("youtube_url2"),
         "filename": session.get("filename"),
+        "filename2": session.get("filename2"),
+        "is_comparison": session.get("is_comparison", False),
     }
 
 

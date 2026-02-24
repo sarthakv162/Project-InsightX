@@ -133,8 +133,8 @@ export function BentoGrid() {
           >
             Multi-Agent Coaching Intelligence
           </h2>
-          <p className="text-zinc-400 max-w-2xl mx-auto">
-            Powered by specialized AI agents that analyze biomechanics, compare performance, extract key moments, and coach you through improvements.
+          <p className="text-sm sm:text-base lg:text-lg text-zinc-400 max-w-2xl mx-auto">
+            Five autonomous AI agents work in concert - scouting key moments, analyzing form, decoding strategy, and building your personalized coaching plan.
           </p>
         </motion.div>
 
@@ -143,12 +143,12 @@ export function BentoGrid() {
           variants={containerVariants}
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4"
         >
           {/* Large card - Temporal Grounding */}
           <motion.div
             variants={itemVariants}
-            className="md:col-span-2 group relative p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300 overflow-hidden"
+            className="md:col-span-2 group relative p-4 sm:p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300 overflow-hidden"
           >
             <div className="flex items-start justify-between mb-8">
               <div>
@@ -157,7 +157,7 @@ export function BentoGrid() {
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">The Scouter</h3>
                 <p className="text-zinc-400 text-sm">
-                  Temporal grounding that finds exact timestamps of key actions. Ask "take me to the mistake" and get instant frame locations.
+                  Pinpoints the exact frame of every critical action. Say "show me the turnover" and jump straight to it - no scrubbing required.
                 </p>
               </div>
               <SystemStatus />
@@ -175,13 +175,13 @@ export function BentoGrid() {
           {/* Kinematic Comparison */}
           <motion.div
             variants={itemVariants}
-            className="group relative p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
+            className="group relative p-4 sm:p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
           >
             <div className="p-2 rounded-lg bg-gradient-to-br from-white/20 to-gray-400/20 w-fit mb-4">
               <Eye className="w-5 h-5 text-white" strokeWidth={1.5} />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">The Analyst</h3>
-            <p className="text-zinc-400 text-sm mb-6">Compare your movements against pros. See biomechanical differences in real-time.</p>
+            <p className="text-zinc-400 text-sm mb-6">Overlay your mechanics against professional benchmarks and surface the subtle differences that matter most.</p>
             <div className="flex items-center justify-between text-sm">
               <span className="text-zinc-400">Stance delta:</span>
               <span className="text-white font-mono">-2.3°</span>
@@ -191,26 +191,26 @@ export function BentoGrid() {
           {/* Tactical Analysis */}
           <motion.div
             variants={itemVariants}
-            className="group relative p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
+            className="group relative p-4 sm:p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
           >
             <div className="p-2 rounded-lg bg-gradient-to-br from-white/20 to-gray-400/20 w-fit mb-4">
               <Brain className="w-5 h-5 text-white" strokeWidth={1.5} />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">The Strategist</h3>
-            <p className="text-zinc-400 text-sm mb-4">Understand tactical decisions. Analyze opponent movements and game meta.</p>
+            <p className="text-zinc-400 text-sm mb-4">Decode tactical patterns, expose opponent tendencies, and uncover the decision-making behind every play.</p>
           </motion.div>
 
           {/* Pedagogical Coaching */}
           <motion.div
             variants={itemVariants}
-            className="group relative p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
+            className="group relative p-4 sm:p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
           >
             <div className="p-2 rounded-lg bg-gradient-to-br from-white/20 to-gray-400/20 w-fit mb-4">
               <Zap className="w-5 h-5 text-white" strokeWidth={1.5} />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">The Coach</h3>
             <p className="text-zinc-400 text-sm mb-4">
-              Get personalized training regimens and drills based on your specific mechanics.
+              Generates structured training programs and targeted drills calibrated to your unique strengths and weaknesses.
             </p>
             <div className="flex items-center gap-2 text-white text-sm">
               <span className="font-mono">5-week plan</span>
@@ -221,13 +221,13 @@ export function BentoGrid() {
           {/* Multi-Video Comparison */}
           <motion.div
             variants={itemVariants}
-            className="group relative p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
+            className="group relative p-4 sm:p-6 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-gray-600/50 hover:scale-[1.02] transition-all duration-300"
           >
             <div className="p-2 rounded-lg bg-gradient-to-br from-white/20 to-gray-400/20 w-fit mb-4">
               <Activity className="w-5 h-5 text-white" strokeWidth={1.5} />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Side-by-Side Analysis</h3>
-            <p className="text-zinc-400 text-sm mb-4">Compare two videos: player vs player, amateur vs pro, you vs reference.</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Side-by-Side Comparison</h3>
+            <p className="text-zinc-400 text-sm mb-4">Place any two performances next to each other — amateur vs. elite, week 1 vs. week 10, you vs. anyone.</p>
             <div className="flex items-center gap-2">
               <span className="px-2 py-1 text-xs bg-white/10 rounded text-gray-200">Video 1</span>
               <span className="px-2 py-1 text-xs bg-gray-400/10 rounded text-gray-300">Video 2</span>

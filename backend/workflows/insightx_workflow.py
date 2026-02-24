@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from typing import Any, Dict
 
 from langgraph.graph import StateGraph, END
@@ -26,6 +27,37 @@ from utils.gemini_client import GeminiClient
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ── async → sync bridge that works inside a running event loop ────────────
+
+def _run_async(coro) -> Any:
+    """Run an async coroutine from a sync context, even if an event loop
+    is already running (e.g. inside uvicorn / FastAPI).
+
+    Spawns a *new* event loop on a background thread so it never clashes
+    with the caller's loop.
+    """
+    result = None
+    exception = None
+
+    def _target():
+        nonlocal result, exception
+        loop = asyncio.new_event_loop()
+        try:
+            result = loop.run_until_complete(coro)
+        except Exception as exc:
+            exception = exc
+        finally:
+            loop.close()
+
+    t = threading.Thread(target=_target)
+    t.start()
+    t.join()
+
+    if exception is not None:
+        raise exception
+    return result
 
 
 # ── Workflow class ────────────────────────────────────────────────────────
@@ -87,9 +119,7 @@ class InsightXWorkflow:
 
     @staticmethod
     def _route_after_orchestrator(state: Dict[str, Any]) -> str:
-        qt = state.get("query_type", "general_analysis")
-        if qt == "comparison":
-            return "analyst"     # skip scouter for pure comparisons
+        # Always run scouter first to get timestamps
         return "scouter"
 
     @staticmethod
@@ -99,32 +129,22 @@ class InsightXWorkflow:
             return "coach"
         return "synthesizer"
 
-    # ── node wrappers (sync → async bridge) ───────────────────────
+    # ── node wrappers (run async agents from sync LangGraph nodes) ──
 
     def _run_orchestrator(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        return asyncio.get_event_loop().run_until_complete(
-            self.orchestrator.execute(state)
-        )
+        return _run_async(self.orchestrator.execute(state))
 
     def _run_scouter(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        return asyncio.get_event_loop().run_until_complete(
-            self.scouter.execute(state)
-        )
+        return _run_async(self.scouter.execute(state))
 
     def _run_analyst(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        return asyncio.get_event_loop().run_until_complete(
-            self.analyst.execute(state)
-        )
+        return _run_async(self.analyst.execute(state))
 
     def _run_strategist(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        return asyncio.get_event_loop().run_until_complete(
-            self.strategist.execute(state)
-        )
+        return _run_async(self.strategist.execute(state))
 
     def _run_coach(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        return asyncio.get_event_loop().run_until_complete(
-            self.coach.execute(state)
-        )
+        return _run_async(self.coach.execute(state))
 
     def _run_synthesizer(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """Final node — turns agent outputs into a clear coaching response."""
@@ -154,7 +174,11 @@ Rules:
 - Keep tone encouraging yet honest
 """
         response = self.gemini.text_query(prompt)
-        return {"final_response": response}
+        # Preserve key_events from state so backend can return them
+        return {
+            "final_response": response,
+            "key_events": state.get("key_events", []),
+        }
 
     # ── public API ────────────────────────────────────────────────
 

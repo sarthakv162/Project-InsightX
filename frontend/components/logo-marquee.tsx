@@ -4,14 +4,11 @@ import { motion, useInView } from "framer-motion"
 import { useRef } from "react"
 
 const logos = [
-  { name: "Vercel", width: 100 },
-  { name: "Stripe", width: 80 },
-  { name: "Linear", width: 90 },
-  { name: "Notion", width: 100 },
-  { name: "Figma", width: 70 },
-  { name: "Slack", width: 90 },
-  { name: "Discord", width: 100 },
-  { name: "GitHub", width: 90 },
+  { name: "LangGraph", icon: "LG" },
+  { name: "OpenCV", icon: "CV" },
+  { name: "GraphRAG", icon: "GR" },
+  { name: "FastAPI", icon: "FA" },
+  { name: "Pydantic", icon: "PD" },
 ]
 
 export function LogoMarquee() {
@@ -26,7 +23,7 @@ export function LogoMarquee() {
         transition={{ duration: 0.6 }}
         className="text-center mb-10"
       >
-        <p className="text-sm text-zinc-500 uppercase tracking-wider font-medium">Trusted by industry leaders</p>
+        <p className="text-sm text-zinc-500 uppercase tracking-wider font-medium">Powered by cutting-edge technology</p>
       </motion.div>
 
       <div className="relative">
@@ -41,11 +38,11 @@ export function LogoMarquee() {
               key={index}
               className="flex items-center justify-center min-w-[160px] h-16 mx-8 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
             >
-              <div className="flex items-center gap-2 text-zinc-400">
-                <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center">
-                  <span className="text-xs font-bold">{logo.name[0]}</span>
+              <div className="flex items-center gap-3 text-zinc-400">
+                <div className="w-8 h-8 rounded-lg bg-zinc-800/80 border border-zinc-700/50 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-zinc-300">{logo.icon}</span>
                 </div>
-                <span className="font-medium" style={{ fontFamily: "var(--font-instrument-sans)" }}>
+                <span className="font-medium text-zinc-300" style={{ fontFamily: "var(--font-instrument-sans)" }}>
                   {logo.name}
                 </span>
               </div>

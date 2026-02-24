@@ -8,16 +8,16 @@ import { Button } from "@/components/ui/button"
 const plans = [
   {
     name: "Student",
-    description: "For individual athletes and students",
+    description: "Perfect for solo athletes and learners getting started",
     price: { monthly: 0, yearly: 0 },
-    features: ["5 video uploads/month", "Basic analysis", "Timestamp extraction", "Community support", "7-day analysis history"],
+    features: ["5 video uploads/day", "Basic analysis", "Timestamp extraction", "Community support", "7-day analysis history"],
     cta: "Get Started Free",
     highlighted: false,
   },
   {
     name: "Coach",
-    description: "For coaches and serious athletes",
-    price: { monthly: 39, yearly: 32 },
+    description: "For dedicated coaches and competitive athletes",
+    price: { monthly: 1999, yearly: 1599 },
     features: [
       "Unlimited video uploads",
       "All AI agents (Scouter, Analyst, Strategist, Coach)",
@@ -32,8 +32,8 @@ const plans = [
   },
   {
     name: "Institution",
-    description: "For schools, academies, and organizations",
-    price: { monthly: 199, yearly: 165 },
+    description: "Enterprise-grade tools for academies and organizations",
+    price: { monthly: 7999, yearly: 6399 },
     features: [
       "Everything in Coach",
       "Team management (50+ members)",
@@ -79,19 +79,18 @@ export function Pricing() {
             className="text-3xl sm:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: "var(--font-manrope)" }}
           >
-            Plans for every level
+            Built for every ambition
           </h2>
-          <p className="text-zinc-400 max-w-2xl mx-auto mb-8">
-            From grassroots to elite. Choose your level and unlock AI-powered coaching insights.
+          <p className="text-sm sm:text-base lg:text-lg text-zinc-400 max-w-2xl mx-auto mb-8">
+            Whether you're training solo or managing an entire academy - there's a plan that fits.
           </p>
 
           {/* Billing Toggle */}
           <div className="inline-flex items-center p-1 rounded-full bg-zinc-900 border border-zinc-800">
             <button
               onClick={() => setBillingCycle("monthly")}
-              className={`relative px-4 py-2 text-sm font-medium rounded-full transition-colors ${
-                billingCycle === "monthly" ? "text-white" : "text-zinc-400"
-              }`}
+              className={`relative px-4 py-2 text-sm font-medium rounded-full transition-colors ${billingCycle === "monthly" ? "text-white" : "text-zinc-400"
+                }`}
             >
               {billingCycle === "monthly" && (
                 <motion.div
@@ -104,9 +103,8 @@ export function Pricing() {
             </button>
             <button
               onClick={() => setBillingCycle("yearly")}
-              className={`relative px-4 py-2 text-sm font-medium rounded-full transition-colors ${
-                billingCycle === "yearly" ? "text-white" : "text-zinc-400"
-              }`}
+              className={`relative px-4 py-2 text-sm font-medium rounded-full transition-colors ${billingCycle === "yearly" ? "text-white" : "text-zinc-400"
+                }`}
             >
               {billingCycle === "yearly" && (
                 <motion.div
@@ -136,11 +134,10 @@ export function Pricing() {
               initial={{ opacity: 0, y: 20 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
-              className={`relative p-6 rounded-2xl border transition-all duration-300 hover:scale-[1.02] ${
-                plan.highlighted
-                  ? "bg-zinc-900 border-zinc-700"
-                  : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-600"
-              }`}
+              className={`relative p-4 sm:p-6 rounded-2xl border transition-all duration-300 hover:scale-[1.02] flex flex-col ${plan.highlighted
+                ? "bg-zinc-900 border-zinc-700"
+                : "bg-zinc-900/50 border-zinc-800 hover:border-zinc-600"
+                }`}
             >
               {plan.highlighted && <BorderBeam />}
 
@@ -151,21 +148,21 @@ export function Pricing() {
               )}
 
               <div className="mb-6">
-                <h3 className="text-xl font-semibold text-white mb-2">{plan.name}</h3>
+                <h3 className="text-lg sm:text-xl font-semibold text-white mb-2">{plan.name}</h3>
                 <p className="text-zinc-400 text-sm">{plan.description}</p>
               </div>
 
               <div className="mb-6">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-bold text-white">${plan.price[billingCycle]}</span>
+                  <span className="text-3xl sm:text-4xl font-bold text-white">₹{plan.price[billingCycle]}</span>
                   {plan.price.monthly > 0 && <span className="text-zinc-400 text-sm">/month</span>}
                 </div>
                 {billingCycle === "yearly" && plan.price.yearly > 0 && (
-                  <p className="text-xs text-zinc-500 mt-1">Billed annually (${plan.price.yearly * 12}/year)</p>
+                  <p className="text-xs text-zinc-500 mt-1">Billed annually (₹{plan.price.yearly * 12}/year)</p>
                 )}
               </div>
 
-              <ul className="space-y-3 mb-8">
+              <ul className="space-y-3 mb-8 flex-grow">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-center gap-3 text-sm text-zinc-300">
                     <Check className="w-4 h-4 text-emerald-500 shrink-0" strokeWidth={1.5} />
@@ -175,11 +172,10 @@ export function Pricing() {
               </ul>
 
               <Button
-                className={`w-full rounded-full ${
-                  plan.highlighted
-                    ? "shimmer-btn bg-white text-zinc-950 hover:bg-gray-200 shadow-lg shadow-white/20 font-semibold"
-                    : "bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700"
-                }`}
+                className={`w-full rounded-full ${plan.highlighted
+                  ? "shimmer-btn bg-white text-zinc-950 hover:bg-gray-200 shadow-lg shadow-white/20 font-semibold"
+                  : "bg-zinc-800 text-white hover:bg-zinc-700 border border-zinc-700"
+                  }`}
               >
                 {plan.cta}
               </Button>

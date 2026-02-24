@@ -16,7 +16,7 @@ export function Footer() {
 
   return (
     <footer ref={ref} className="border-t border-zinc-800 bg-zinc-950">
-      <div className="max-w-6xl mx-auto px-4 py-16">
+      <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -31,7 +31,7 @@ export function Footer() {
               </div>
               <span className="font-semibold text-white">InsightX</span>
             </a>
-            <p className="text-sm text-zinc-500 mb-4">AI-powered sports analysis for athletes and coaches.</p>
+            <p className="text-sm text-zinc-500 mb-4">Multi-agent AI that turns game footage into elite coaching insights.</p>
             {/* System Status */}
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800">
               <span className="w-2 h-2 rounded-full bg-white pulse-glow" />
