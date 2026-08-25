@@ -15,7 +15,7 @@ class StrategistAgent(BaseAgent):
         super().__init__("Strategist")
         self.gemini_client = gemini_client
 
-    async def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_impl(self, state: Dict[str, Any]) -> Dict[str, Any]:
         sources = state.get("video_sources", [])
         user_query = state.get("user_query", "")
         sport = state.get("sport", "unknown")

@@ -1,0 +1,58 @@
+{
+  "_schema_version": "1.0",
+  "_description": "Ground-truth annotations for InsightX evaluation. Each clip has hand-annotated events with precise timestamps. Add your own clips following this schema.",
+  "clips": [
+    {
+      "clip_id": "demo_cricket_01",
+      "video_source": "https://www.youtube.com/watch?v=REPLACE_WITH_REAL_ID",
+      "sport": "cricket",
+      "query": "What are the key moments in this over?",
+      "events": [
+        {
+          "event_type": "shot",
+          "start_seconds": 3.2,
+          "end_seconds": 5.8,
+          "description": "Cover drive, well timed, ball races to boundary"
+        },
+        {
+          "event_type": "error",
+          "start_seconds": 18.5,
+          "end_seconds": 20.1,
+          "description": "Batsman plays across the line, edges to slip"
+        },
+        {
+          "event_type": "recovery",
+          "start_seconds": 32.0,
+          "end_seconds": 34.5,
+          "description": "Defensive block after bouncer, good technique"
+        }
+      ]
+    },
+    {
+      "clip_id": "demo_tennis_01",
+      "video_source": "https://www.youtube.com/watch?v=REPLACE_WITH_REAL_ID",
+      "sport": "tennis",
+      "query": "Analyse the serve and return in this rally",
+      "events": [
+        {
+          "event_type": "serve",
+          "start_seconds": 1.0,
+          "end_seconds": 2.5,
+          "description": "First serve, flat, wide to deuce court"
+        },
+        {
+          "event_type": "shot",
+          "start_seconds": 3.0,
+          "end_seconds": 4.2,
+          "description": "Cross-court forehand return"
+        },
+        {
+          "event_type": "error",
+          "start_seconds": 8.5,
+          "end_seconds": 9.8,
+          "description": "Unforced error, backhand into the net"
+        }
+      ]
+    }
+  ]
+}

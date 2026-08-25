@@ -6,7 +6,7 @@ import { useRef } from "react"
 const logos = [
   { name: "LangGraph", icon: "LG" },
   { name: "OpenCV", icon: "CV" },
-  { name: "GraphRAG", icon: "GR" },
+  { name: "Gemini VLM", icon: "GV" },
   { name: "FastAPI", icon: "FA" },
   { name: "Pydantic", icon: "PD" },
 ]

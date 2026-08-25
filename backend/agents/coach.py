@@ -15,7 +15,7 @@ class CoachAgent(BaseAgent):
         super().__init__("Coach")
         self.gemini_client = gemini_client
 
-    async def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_impl(self, state: Dict[str, Any]) -> Dict[str, Any]:
         user_query = state.get("user_query", "")
         sport = state.get("sport", "unknown")
 

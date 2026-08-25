@@ -3,10 +3,16 @@
 Sends video(s) to Gemini for spatial / biomechanical reasoning.
 For comparison queries both videos are analysed side-by-side.
 Supports YouTube URLs and local files transparently.
+
+Enhancements:
+  - Injects sport-specific key metrics and common errors from
+    ``SPORT_SPECIFIC_PROMPTS`` when the sport is recognised.
+  - Filters analyses below ``CONFIDENCE_THRESHOLD``.
 """
 
 from agents.base_agent import BaseAgent
 from utils.gemini_client import GeminiClient
+from config.settings import settings
 from typing import Dict, Any, List
 
 
@@ -17,7 +23,7 @@ class AnalystAgent(BaseAgent):
         super().__init__("Analyst")
         self.gemini_client = gemini_client
 
-    async def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_impl(self, state: Dict[str, Any]) -> Dict[str, Any]:
         sources = state.get("video_sources", [])
         if not sources:
             self.log("error", "No videos provided")
@@ -31,6 +37,22 @@ class AnalystAgent(BaseAgent):
             return await self._compare(sources, user_query, sport, events_ctx)
         return await self._single(sources[0], user_query, sport, events_ctx)
 
+    # ── sport-specific context injection ──────────────────────────
+
+    @staticmethod
+    def _sport_context(sport: str) -> str:
+        """Build an extra prompt section from SPORT_SPECIFIC_PROMPTS."""
+        prompts = settings.SPORT_SPECIFIC_PROMPTS.get(sport.lower())
+        if not prompts:
+            return ""
+        metrics = ", ".join(prompts.get("key_metrics", []))
+        errors = ", ".join(prompts.get("common_errors", []))
+        return (
+            f"\n\nSport-specific guidance for {sport.upper()}:\n"
+            f"  Key metrics to evaluate: {metrics}\n"
+            f"  Common errors to watch for: {errors}\n"
+        )
+
     # ── two-video comparison ──────────────────────────────────────
 
     async def _compare(
@@ -41,12 +63,14 @@ class AnalystAgent(BaseAgent):
         ref1 = self.gemini_client.prepare_video(sources[0])
         ref2 = self.gemini_client.prepare_video(sources[1])
 
+        sport_ctx = self._sport_context(sport)
+
         prompt = f"""
 You are a professional {sport.upper()} biomechanist.
 
 Previously detected events:
 {events_ctx}
-
+{sport_ctx}
 User question: "{query}"
 
 Compare the TWO videos (Video 1 = user, Video 2 = reference).
@@ -76,8 +100,10 @@ Return JSON:
 """
         result = self.gemini_client.query_two_videos_json(ref1, ref2, prompt)
 
+        analyses = self._filter_by_confidence(result.get("analyses", []))
+
         return {
-            "biomechanical_analysis": result.get("analyses", []),
+            "biomechanical_analysis": analyses,
             "analyst_summary": result.get("summary", ""),
         }
 
@@ -90,12 +116,14 @@ Return JSON:
 
         video_ref = self.gemini_client.prepare_video(source)
 
+        sport_ctx = self._sport_context(sport)
+
         prompt = f"""
 You are a professional {sport.upper()} biomechanist analysing an athlete's technique.
 
 Previously detected events:
 {events_ctx}
-
+{sport_ctx}
 User question: "{query}"
 
 Evaluate the athlete's form and technique:
@@ -123,7 +151,20 @@ Return JSON:
 """
         result = self.gemini_client.query_video_json(video_ref, prompt)
 
+        analyses = self._filter_by_confidence(result.get("analyses", []))
+
         return {
-            "biomechanical_analysis": result.get("analyses", []),
+            "biomechanical_analysis": analyses,
             "analyst_summary": result.get("summary", ""),
         }
+
+    # ── confidence filter ─────────────────────────────────────────
+
+    @staticmethod
+    def _filter_by_confidence(analyses: list) -> list:
+        """Drop analyses whose confidence is below CONFIDENCE_THRESHOLD."""
+        threshold = settings.CONFIDENCE_THRESHOLD
+        filtered = [
+            a for a in analyses if a.get("confidence", 0) >= threshold
+        ]
+        return filtered

@@ -2,10 +2,15 @@
 
 Uses Gemini's native video understanding to find WHEN things happen.
 Supports both local files and YouTube URLs transparently.
+
+Post-processing:
+  - Filters events below ``CONFIDENCE_THRESHOLD``
+  - Drops events shorter than ``EVENT_DURATION_MIN_SECONDS``
 """
 
 from agents.base_agent import BaseAgent
 from utils.gemini_client import GeminiClient
+from config.settings import settings
 from typing import Dict, Any
 
 
@@ -16,7 +21,7 @@ class ScouterAgent(BaseAgent):
         super().__init__("Scouter")
         self.gemini_client = gemini_client
 
-    async def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+    async def _execute_impl(self, state: Dict[str, Any]) -> Dict[str, Any]:
         video_sources = state.get("video_sources", [])
         if not video_sources:
             self.log("error", "No videos provided")
@@ -63,6 +68,28 @@ Respond in JSON:
 
         events = result.get("events", [])
         summary = result.get("summary", "")
+
+        # ── Apply quality filters from settings ──────────────────
+        raw_count = len(events)
+        events = [
+            e
+            for e in events
+            if e.get("confidence", 0) >= settings.CONFIDENCE_THRESHOLD
+        ]
+        events = [
+            e
+            for e in events
+            if (e.get("end_seconds", 0) - e.get("start_seconds", 0))
+            >= settings.EVENT_DURATION_MIN_SECONDS
+        ]
+        filtered = raw_count - len(events)
+        if filtered:
+            self.log(
+                "info",
+                f"Filtered {filtered}/{raw_count} events "
+                f"(confidence < {settings.CONFIDENCE_THRESHOLD} "
+                f"or duration < {settings.EVENT_DURATION_MIN_SECONDS}s)",
+            )
 
         self.log("info", f"Detected {len(events)} events")
 

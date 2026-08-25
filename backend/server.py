@@ -2,6 +2,9 @@
 
 Exposes the multi-agent pipeline via REST endpoints so the
 Next.js frontend can send videos and queries.
+
+Video uploads are processed through VideoProcessor to extract
+metadata (fps, duration, resolution) before analysis begins.
 """
 
 import os
@@ -11,7 +14,7 @@ import shutil
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +23,7 @@ from pydantic import BaseModel
 
 from config.settings import settings
 from utils.gemini_client import GeminiClient
+from utils.video_processor import VideoProcessor, extract_video_metadata
 from workflows.insightx_workflow import InsightXWorkflow
 
 # ── logging ───────────────────────────────────────────────────────────────
@@ -82,6 +86,15 @@ class QueryRequest(BaseModel):
     sport: Optional[str] = None
 
 
+class VideoMetadataResponse(BaseModel):
+    duration_seconds: float
+    fps: float
+    total_frames: int
+    resolution: List[int]
+    width: int
+    height: int
+
+
 class SessionResponse(BaseModel):
     session_id: str
     status: str = "ready"
@@ -91,12 +104,40 @@ class SessionResponse(BaseModel):
     filename2: Optional[str] = None
     youtube_url2: Optional[str] = None
     is_comparison: bool = False
+    video_metadata: Optional[VideoMetadataResponse] = None
 
 
 class AnalysisResponse(BaseModel):
     response: str
     session_id: str
     key_events: list = []
+
+
+# ── helpers ───────────────────────────────────────────────────────────────
+
+def _extract_and_validate_video(file_path: str) -> Dict[str, Any]:
+    """Extract video metadata using VideoProcessor and validate duration.
+
+    Raises HTTPException if the video exceeds VIDEO_MAX_DURATION.
+    """
+    try:
+        metadata = extract_video_metadata(file_path)
+    except ValueError as e:
+        raise HTTPException(400, f"Invalid video file: {e}")
+
+    if metadata["duration_seconds"] > settings.VIDEO_MAX_DURATION:
+        raise HTTPException(
+            400,
+            f"Video too long: {metadata['duration_seconds']:.0f}s "
+            f"(max {settings.VIDEO_MAX_DURATION}s)",
+        )
+
+    logger.info(
+        f"Video metadata: {metadata['duration_seconds']:.1f}s, "
+        f"{metadata['fps']:.1f} fps, {metadata['width']}×{metadata['height']}, "
+        f"{metadata['total_frames']} frames"
+    )
+    return metadata
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────
@@ -119,11 +160,15 @@ async def upload_video(
     with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
+    # Extract video metadata via VideoProcessor
+    metadata = _extract_and_validate_video(str(dest.resolve()))
+
     sessions[session_id] = {
         "video_sources": [str(dest.resolve())],
         "sport": sport,
         "source_type": "upload",
         "filename": safe_name,
+        "video_metadata": metadata,
     }
     logger.info(f"Uploaded {file.filename} → session {session_id}")
 
@@ -132,6 +177,7 @@ async def upload_video(
         status="ready",
         source_type="upload",
         filename=safe_name,
+        video_metadata=VideoMetadataResponse(**metadata),
     )
 
 
@@ -172,6 +218,7 @@ async def run_analysis(body: QueryRequest):
         "video_sources": session["video_sources"],
         "sport": sport,
         "chat_history": [],
+        "video_metadata": session.get("video_metadata"),
     }
 
     logger.info(f"Running pipeline for session {body.session_id}")
@@ -234,6 +281,10 @@ async def upload_compare(
     with open(dest2, "wb") as f:
         shutil.copyfileobj(file2.file, f)
 
+    # Extract metadata for both videos
+    meta1 = _extract_and_validate_video(str(dest1.resolve()))
+    meta2 = _extract_and_validate_video(str(dest2.resolve()))
+
     sessions[session_id] = {
         "video_sources": [str(dest1.resolve()), str(dest2.resolve())],
         "sport": sport,
@@ -241,6 +292,8 @@ async def upload_compare(
         "filename": safe1,
         "filename2": safe2,
         "is_comparison": True,
+        "video_metadata": meta1,
+        "video_metadata_2": meta2,
     }
     logger.info(f"Compare upload {file1.filename} vs {file2.filename} → session {session_id}")
 
@@ -251,6 +304,7 @@ async def upload_compare(
         filename=safe1,
         filename2=safe2,
         is_comparison=True,
+        video_metadata=VideoMetadataResponse(**meta1),
     )
 
 
@@ -278,7 +332,20 @@ async def get_session(session_id: str):
         "filename": session.get("filename"),
         "filename2": session.get("filename2"),
         "is_comparison": session.get("is_comparison", False),
+        "video_metadata": session.get("video_metadata"),
     }
+
+
+@app.get("/api/video/metadata/{session_id}")
+async def get_video_metadata(session_id: str):
+    """Return video metadata (fps, duration, resolution) for a session."""
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+    metadata = session.get("video_metadata")
+    if not metadata:
+        raise HTTPException(404, "No metadata available (YouTube videos don't have local metadata)")
+    return VideoMetadataResponse(**metadata)
 
 
 # ── run ───────────────────────────────────────────────────────────────────

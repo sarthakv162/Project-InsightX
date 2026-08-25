@@ -15,3 +15,7 @@ node_modules/
 .next/
 dist/
 build/
+
+# Interview prep materials
+intv_prep_qa.md
+interview_prep_qa.md

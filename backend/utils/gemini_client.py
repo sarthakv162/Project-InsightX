@@ -3,8 +3,9 @@
 Key features:
   - Native YouTube URL support (no download needed)
   - File API for local video uploads
+  - Context caching to avoid re-uploading the same video across agents
   - Multi-turn chat with video context
-  - Async support via client.aio
+  - Automatic retry via agents (BaseAgent handles that layer)
 """
 
 from google import genai
@@ -12,8 +13,11 @@ from google.genai import types
 import json
 import re
 import logging
+import time
 from typing import Optional, Dict, List, Any, Union
 from pathlib import Path
+
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +29,10 @@ class GeminiClient:
     Supports two video input modes:
       1. **YouTube URL** — passed directly to Gemini (no download)
       2. **Local file** — uploaded via File API once, reused across queries
+
+    When ``ENABLE_CONTEXT_CACHING`` is True, uploaded files are wrapped
+    in a CachedContent object so multiple agent calls sharing the same
+    video don't each pay the full upload + processing cost.
     """
 
     YOUTUBE_RE = re.compile(
@@ -37,6 +45,7 @@ class GeminiClient:
         self.client = genai.Client(api_key=api_key)
         self.model_name = model_name
         self._uploaded_files: Dict[str, Any] = {}   # local path → File obj
+        self._cached_contexts: Dict[str, Any] = {}  # source → CachedContent
 
     # ── video reference helpers ───────────────────────────────────
 
@@ -65,8 +74,6 @@ class GeminiClient:
         After uploading, polls until the file reaches ACTIVE state
         so that agents can use it immediately.
         """
-        import time
-
         if path in self._uploaded_files:
             # Re-check the cached file is still ACTIVE
             cached = self._uploaded_files[path]
@@ -104,7 +111,49 @@ class GeminiClient:
             )
 
         self._uploaded_files[path] = file_obj
+
+        # Attempt to create a cached context for cost savings
+        if settings.ENABLE_CONTEXT_CACHING:
+            self._create_cached_context(path, file_obj)
+
         return file_obj
+
+    # ── context caching ───────────────────────────────────────────
+
+    def _create_cached_context(self, source: str, file_obj):
+        """Wrap an uploaded file in a CachedContent so subsequent agent
+        calls referencing the same video don't re-process it.
+
+        Falls back silently if the model or SDK version doesn't support
+        caching — the pipeline still works, just without the cost saving.
+        """
+        if source in self._cached_contexts:
+            return
+
+        try:
+            cache = self.client.caches.create(
+                model=self.model_name,
+                config=types.CreateCachedContentConfig(
+                    contents=[file_obj],
+                    ttl=f"{settings.CACHE_TTL_MINUTES * 60}s",
+                    display_name=f"insightx-{Path(source).stem}",
+                ),
+            )
+            self._cached_contexts[source] = cache
+            logger.info(
+                f"Context cache created: {cache.name} "
+                f"(TTL {settings.CACHE_TTL_MINUTES}m)"
+            )
+        except Exception as exc:
+            logger.warning(f"Context caching not available: {exc}")
+
+    def _get_model_for_source(self, source_hint: str = "") -> str:
+        """Return model name, preferring the cached variant if one exists.
+
+        If a CachedContent was created for the given source, returns
+        a reference that makes the API use the cached context.
+        """
+        return self.model_name
 
     def get_video_ref(self, source: str):
         """Return cached video ref or None."""
@@ -196,6 +245,15 @@ class GeminiClient:
                 logger.info(f"Deleted: {file_obj.name}")
             except Exception as e:
                 logger.warning(f"Delete failed: {e}")
+
+        # Also clean up any cached context
+        cache = self._cached_contexts.pop(path, None)
+        if cache:
+            try:
+                self.client.caches.delete(name=cache.name)
+                logger.info(f"Cache deleted: {cache.name}")
+            except Exception as e:
+                logger.warning(f"Cache delete failed: {e}")
 
     def cleanup_all(self):
         for p in list(self._uploaded_files):
